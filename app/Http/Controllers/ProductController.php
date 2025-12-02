@@ -26,7 +26,12 @@ class ProductController extends Controller
             $product = Product::find($id);
             if (!$product)
                 return null;
-            return $product;
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'available_stock' => $product->available_stock,
+                'price' => $product->price,
+            ];
         });
     }
 }
