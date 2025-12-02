@@ -23,7 +23,6 @@ class HoldController extends Controller
         $validated = $request->validated();
 
         try {
-            // dd($validated);
             $hold = $this->holdService->createHold($validated['product_id'], $validated['quantity']);
 
             return $this->successResponse($hold, 'Hold Created successfully', 201);
