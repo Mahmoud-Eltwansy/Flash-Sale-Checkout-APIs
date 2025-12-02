@@ -7,12 +7,12 @@ namespace Tests\Feature\Products;
 use App\Models\Product;
 use Tests\TestCase;
 
-class FlashSaleTest extends TestCase
+class ProductAccurateStockTest extends TestCase
 {
     /**
      * A basic test example.
      */
-    public function test_endpoint_returns_correct_stock(): void
+    public function test_endpoint_returns_accurate_stock(): void
     {
         $product = Product::factory()->create([
             'total_stock' => 50,
