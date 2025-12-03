@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 // use Illuminate\Foundation\Testing\RefreshDatabase;
 
+use App\Models\Hold;
 use App\Models\Order;
 use App\Models\Product;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PaymentWebhookTest extends TestCase
@@ -18,7 +20,7 @@ class PaymentWebhookTest extends TestCase
         $webhookData = [
             'order_id' => $order->id,
             'status' => 'success',
-            'idempotency_key' => 'aaaaaaaaaa',
+            'idempotency_key' => 'aaaaadsdaaaa',
         ];
 
         // First webhook
@@ -54,7 +56,7 @@ class PaymentWebhookTest extends TestCase
         $response = $this->postJson('/api/payments/webhook', [
             'order_id' => $order->id,
             'status' => 'success',
-            'idempotency_key' => 'bbbbbbbb',
+            'idempotency_key' => 'bbbbbbasdb',
         ]);
 
         $response->assertStatus(200);
@@ -83,7 +85,7 @@ class PaymentWebhookTest extends TestCase
         $response = $this->postJson('/api/payments/webhook', [
             'order_id' => $order->id,
             'status' => 'failed',
-            'idempotency_key' => 'ccccccccccccc',
+            'idempotency_key' => 'ccccccccc',
         ]);
 
         $response->assertStatus(200);
@@ -94,5 +96,61 @@ class PaymentWebhookTest extends TestCase
         // Stock released
         $product->refresh();
         $this->assertEquals(0, $product->reserved_stock);
+    }
+
+    public function test_webhook_arrives_before_order_creation()
+    {
+        $product = Product::factory()->create([
+            'total_stock' => 100,
+            'reserved_stock' => 0,
+        ]);
+
+        $hold = Hold::factory()->create([
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'status' => 'active',
+        ]);
+
+        // Simulate slow order creation
+        DB::beginTransaction();
+
+        $order = Order::create([
+            'hold_id' => $hold->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'total_price' => 199.98,
+            'status' => 'pending',
+        ]);
+
+        // Don't commit yet - simulate slow transaction
+        // Meanwhile, webhook arrives...
+
+        // Send webhook in separate process (order not visible yet)
+        $webhookResponse = $this->postJson('/api/payments/webhook', [
+            'order_id' => $order->id,
+            'status' => 'success',
+            'idempotency_key' => 'unique_key_1234',
+        ]);
+
+        // Commit order after webhook sent
+        sleep(1); // Simulate 1 second delay
+        DB::commit();
+
+
+        // It will retry and find the order
+        $webhookResponse->assertStatus(200);
+
+        // Order should be marked as paid
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => 'paid',
+        ]);
+
+        // Webhook log should exist
+        $this->assertDatabaseHas('payment_webhook', [
+            'idempotency_key' => 'unique_key_1234',
+            'order_id' => $order->id,
+            'status' => 'success',
+        ]);
     }
 }

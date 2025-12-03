@@ -1,59 +1,203 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Flash Sale Checkout APIs
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A high-concurrency flash sale checkout system built with Laravel 12.
 
-## About Laravel
+It's a small API that sells a limited-stock product during a flash sale. It must handle
+high concurrency without overselling, support short-lived holds, checkout, and an idempotent payment webhook.
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- ✅ Thread-safe hold creation with pessimistic locking
+- ✅ Automatic hold expiry with stock release
+- ✅ Idempotent payment webhooks
+- ✅ Out-of-order webhook handling
+- ✅ Comprehensive test suite
+- ✅ Structured logging for monitoring
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
+- PHP 8.2+
+- MySQL 8.0+ (InnoDB)
+- Composer
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Installation
+```bash
+# Clone repository
+git clone <repo-url>
+cd flash-sale-api
 
-## Learning Laravel
+# Install dependencies
+composer install
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+# Configure environment
+cp .env.example .env
+php artisan key:generate
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# Update .env with database credentials
+DB_DATABASE=flash_sale
+DB_USERNAME=root
+DB_PASSWORD=your_password
 
-## Laravel Sponsors
+# Run migrations and seed
+php artisan migrate --seed
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Start server
+php artisan serve
+```
 
-### Premium Partners
+## Running the Application
+```bash
+# Terminal 1: Start web server
+php artisan serve
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Terminal 2: Start scheduler (for hold expiry)
+php artisan schedule:work
+```
 
-## Contributing
+## API Endpoints
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 1. Get Product
+```bash
+GET /api/products/{id}
 
-## Code of Conduct
+Response:
+{
+    "success": true,
+    "message": "Success",
+    "data": {
+        "id": 1,
+        "name": "Iphone 17",
+        "available_stock": 99,
+        "price": "1100.00"
+    }
+}
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 2. Create Hold
+```bash
+POST /api/holds
+Content-Type: application/json
 
-## Security Vulnerabilities
+{
+  "product_id": 1,
+  "qty": 2
+}
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Response (201):
+{
+    "success": true,
+    "message": "Hold Created successfully",
+    "data": {
+        "quantity": 1,
+        "expires_at": "2025-12-03T11:08:59.000000Z",
+        "status": "active",
+        "product_id": 1,
+        "updated_at": "2025-12-03T11:06:59.000000Z",
+        "created_at": "2025-12-03T11:06:59.000000Z",
+        "id": 123
+    }
+}
+```
 
-## License
+### 3. Create Order
+```bash
+POST /api/orders
+Content-Type: application/json
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+{
+  "hold_id": 123
+}
+
+Response (201):
+{
+    "success": true,
+    "message": "Order Created successfully",
+    "data": {
+        "product_id": 1,
+        "hold_id": 123,
+        "quantity": 1,
+        "total_price": 1100,
+        "updated_at": "2025-12-03T11:08:53.000000Z",
+        "created_at": "2025-12-03T11:08:53.000000Z",
+        "id": 30
+    }
+}
+```
+
+### 4. Payment Webhook
+```bash
+POST /api/payments/webhook
+Content-Type: application/json
+
+{
+  "order_id": 30,
+  "status": "success",
+  "idempotency_key": "unique-key-789"
+}
+
+Response (200):
+{
+    "success": true,
+    "message": "Success",
+    "data": {
+        "message": "Payment confirmed",
+        "order_id": 30,
+        "status": "paid"
+    }
+}
+```
+
+## Running Tests
+```bash
+# Run all tests
+php artisan test
+
+# Run specific test
+php artisan test --filter=prevents_overselling_under_concurrent_requests
+
+```
+
+## Architecture Decisions
+
+### Stock Management
+- **Two-column approach**: `total_stock` and `reserved_stock`
+- **Available stock**: Calculated as `total_stock - reserved_stock`
+- **Rationale**: Separates inventory truth from temporary holds
+
+### Concurrency Control
+- **Pessimistic locking**: `SELECT ... FOR UPDATE` on product rows
+- **Transaction isolation**: All stock changes in database transactions
+- **Deadlock handling**: Retry logic with 3 max attempts
+
+### Caching Strategy
+- **Cache-aside pattern**: Check cache → miss → query DB → store in cache
+- **TTL**: 30 seconds (balance freshness vs performance)
+- **Invalidation**: On every stock change (hold, expiry, cancellation)
+
+### Webhook Idempotency
+- **Primary key**: `idempotency_key` in `payment_webhook` table
+- **Duplicate detection**: Check table before processing
+- **Out-of-order safety**: Retry with exponential backoff if order not found yet
+
+### Hold Expiry
+- **Scheduled command**: Runs every minute via Laravel scheduler
+- **Chunking**: Processes 100 holds per batch (prevents long transactions)
+- **Locking**: Each hold processed in separate transaction with product lock
+
+## Invariants Enforced
+
+1. `reserved_stock <= total_stock` (database constraint)
+2. `reserved_stock >= 0` (unsigned column)
+3. Each hold used exactly once (unique constraint on `orders.hold_id`)
+4. Each webhook processed exactly once (primary key on `idempotency_key`)
+
+## Monitoring & Logs
+
+**Log location**: `storage/logs/laravel.log`
+
+**Key metrics logged**:
+- Hold Expired, Hold expiry job completed, 
+- Webhook duplicate count
+- Hold expiry batch size and duration
+- Successful payment,Failed Payment
+
+
+### This is project is made by Mahmoud Eltwansy
