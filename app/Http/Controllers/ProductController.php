@@ -15,7 +15,7 @@ class ProductController extends Controller
     {
         $product = $this->getProductById($id);
         if (!$product)
-            return $this->errorResponse($product, 'Product Not Found', 404);
+            return $this->errorResponse('Product Not Found', 404, $product);
         return $this->successResponse($product);
     }
     public function getProductById($id)

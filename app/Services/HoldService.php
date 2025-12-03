@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class HoldService
@@ -35,6 +36,8 @@ class HoldService
                 'status' => 'active',
             ]);
 
+            // Invalidate cache
+            Cache::forget("product:{$product->id}:data");
 
             return $hold;
         }, 3); // Retry up to 3 times in case of deadlock

@@ -27,7 +27,7 @@ class HoldController extends Controller
 
             return $this->successResponse($hold, 'Hold Created successfully', 201);
         } catch (\Throwable  $e) {
-            return $this->errorResponse($e->getMessage(), 'Error', $e->getCode());
+            return $this->errorResponse($e->getMessage(), $e->getCode());
         }
     }
 }

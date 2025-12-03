@@ -25,7 +25,7 @@ class OrderController extends Controller
 
             return $this->successResponse($order, 'Order Created successfully', 201);
         } catch (\Throwable $th) {
-            return $this->errorResponse($th->getMessage(), 'Error', $th->getCode());
+            return $this->errorResponse($th->getMessage(), $th->getCode());
         }
     }
 }

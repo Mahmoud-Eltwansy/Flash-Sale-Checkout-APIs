@@ -13,10 +13,10 @@ trait ApiResponse
         if ($data) {
             $response['data'] = $data;
         }
-        return response()->json($response, $statusCode);
+        return response()->json($response, (int)$statusCode);
     }
 
-    protected function errorResponse($errors = null, $message = 'Error', $statusCode = 400)
+    protected function errorResponse($message = 'Error', $statusCode = 400, $errors = null)
     {
         $response = [
             'success' => false,
@@ -25,6 +25,6 @@ trait ApiResponse
         if ($errors) {
             $response['errors'] = $errors;
         }
-        return response()->json($response, $statusCode);
+        return response()->json($response, (int)$statusCode);
     }
 }

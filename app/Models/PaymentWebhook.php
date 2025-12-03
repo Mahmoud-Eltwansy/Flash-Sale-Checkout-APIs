@@ -12,6 +12,7 @@ class PaymentWebhook extends Model
     public $incrementing = false;
     protected $keyType = 'string';
     public $timestamps = false;
+    protected $table = 'payment_webhook';
 
     protected $fillable = ['idempotency_key', 'order_id', 'status', 'payload', 'response', 'processed_at'];
 
