@@ -11,6 +11,14 @@ class Hold extends Model
     protected $fillable = ['product_id', 'quantity', 'status', 'expires_at'];
 
     protected $casts = ['expires_at' => 'datetime'];
+
+    public function scopeExpiredAndActive($query)
+    {
+        return $query->where('status', 'active')->where('expires_at', '<=', now());
+    }
+
+
+
     // Relations
     public function product()
     {

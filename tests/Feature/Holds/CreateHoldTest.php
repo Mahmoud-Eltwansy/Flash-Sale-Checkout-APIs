@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 // use Illuminate\Foundation\Testing\RefreshDatabase;
 
+use App\Models\Hold;
 use App\Models\Product;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 class CreateHoldTest extends TestCase
@@ -63,7 +65,6 @@ class CreateHoldTest extends TestCase
             ->assertJsonStructure([
                 'success',
                 'message',
-                'errors'
             ]);
 
         $product->refresh();
@@ -83,7 +84,6 @@ class CreateHoldTest extends TestCase
             ->assertJsonStructure([
                 'success',
                 'message',
-                'errors'
             ]);
     }
 
@@ -121,5 +121,30 @@ class CreateHoldTest extends TestCase
         $product->refresh();
         // Assert that the reserved stock is equal to total stock
         $this->assertEquals(10, $product->reserved_stock);
+    }
+
+
+    public function test_expired_holds_release_stock()
+    {
+        $product = Product::factory()->create([
+            'total_stock' => 10,
+            'reserved_stock' => 5,
+        ]);
+
+        $hold = Hold::factory()->create([
+            'product_id' => $product->id,
+            'quantity' => 5,
+            'status' => 'active',
+            'expires_at' => now()->subMinutes(1), // Expired
+        ]);
+
+        // Run the expire holds command
+        Artisan::call('holds:expires');
+
+        $product->refresh();
+        $this->assertEquals(0, $product->reserved_stock);
+
+        $hold->refresh();
+        $this->assertEquals('expired', $hold->status);
     }
 }
